@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<style>
+  html, body { margin:0; padding:0; width:100%; height:100%; background:transparent; overflow:hidden; }
+  canvas { width:100%; height:100%; display:block; }
+</style>
+<script>
+  // Tangkap SEMUA error JS dan kirim ke Android, supaya kalau avatar gagal
+  // muncul, alasannya kelihatan jelas di layar (bukan diam putih kosong).
+  window.onerror = function (message, source, lineno, colno, err) {
+    try {
+      if (window.Android && window.Android.onJsEvent) {
+        window.Android.onJsEvent("onJsError", JSON.stringify({
+          message: String(message), source: String(source), line: lineno
+        }));
+      }
+    } catch (e) {}
+    return false;
+  };
+  window.addEventListener("unhandledrejection", function (event) {
+    try {
+      if (window.Android && window.Android.onJsEvent) {
+        window.Android.onJsEvent("onJsError", JSON.stringify({ message: String(event.reason) }));
+      }
+    } catch (e) {}
+  });
+  function reportError(msg) {
+    if (window.Android && window.Android.onJsEvent) {
+      window.Android.onJsEvent("onJsError", JSON.stringify({ message: msg }));
+    }
+  }
+</script>
+<!-- Semua library di bawah ini SUDAH DIBUNDEL LOKAL saat proses build
+     (lihat scripts/bundle-web-libs.sh), TIDAK diambil dari CDN saat app
+     jalan. Jadi avatar tetap muncul walau HP sedang tanpa internet. -->
+<script src="js/live2dcubismcore.min.js" onerror="reportError('Gagal memuat live2dcubismcore.min.js (harusnya sudah dibundel)')"></script>
+<script src="js/pixi.min.js" onerror="reportError('Gagal memuat pixi.min.js (harusnya sudah dibundel oleh scripts/bundle-web-libs.sh saat build)')"></script>
+<script src="js/cubism4.min.js" onerror="reportError('Gagal memuat cubism4.min.js (harusnya sudah dibundel oleh scripts/bundle-web-libs.sh saat build)')"></script>
+</head>
+<body>
+<canvas id="canvas"></canvas>
+<script src="js/live2d-bridge.js" onerror="reportError('Gagal memuat live2d-bridge.js')"></script>
+</body>
+</html>

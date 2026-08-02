@@ -1,0 +1,18 @@
+*.iml
+.gradle/
+/local.properties
+.idea/
+.DS_Store
+/build
+/captures
+.externalNativeBuild
+.cxx
+app/build/
+gradle-wrapper.jar
+gradlew
+gradlew.bat
+
+# Dibundel otomatis oleh scripts/bundle-web-libs.sh (CI atau lokal),
+# jadi tidak perlu (dan sebaiknya tidak) ikut di-commit.
+app/src/main/assets/web/js/pixi.min.js
+app/src/main/assets/web/js/cubism4.min.js
