@@ -27,20 +27,71 @@
       }
     } catch (e) {}
   });
-  function reportScriptLoadError(name) {
+  function reportError(msg) {
     if (window.Android && window.Android.onJsEvent) {
-      window.Android.onJsEvent("onJsError", JSON.stringify({ message: "Gagal memuat " + name + " (cek koneksi internet)" }));
+      window.Android.onJsEvent("onJsError", JSON.stringify({ message: msg }));
     }
   }
+
+  // ===== Loader dengan beberapa CDN cadangan =====
+  // Kalau satu sumber gagal (network error / file kosong / path salah),
+  // otomatis coba sumber berikutnya, sampai "checkFn" mengonfirmasi
+  // library-nya benar-benar berhasil ter-load.
+  function loadScriptTag(url) {
+    return new Promise(function (resolve, reject) {
+      var s = document.createElement("script");
+      s.src = url;
+      s.onload = function () { resolve(); };
+      s.onerror = function () { reject(new Error("gagal load: " + url)); };
+      document.head.appendChild(s);
+    });
+  }
+
+  async function loadFirstWorking(candidates, checkFn, label) {
+    for (var i = 0; i < candidates.length; i++) {
+      try {
+        await loadScriptTag(candidates[i]);
+        if (checkFn()) return true;
+      } catch (e) {
+        // lanjut coba URL berikutnya
+      }
+    }
+    reportError("Gagal memuat " + label + " dari semua sumber CDN. Cek koneksi internet HP kamu.");
+    return false;
+  }
+
+  async function bootstrap() {
+    var pixiOk = await loadFirstWorking(
+      [
+        "https://cdn.jsdelivr.net/npm/pixi.js@6.5.9/dist/browser/pixi.min.js",
+        "https://cdn.jsdelivr.net/npm/pixi.js@6.5.9/dist/pixi.min.js",
+        "https://unpkg.com/pixi.js@6.5.9/dist/browser/pixi.min.js",
+        "https://unpkg.com/pixi.js@6.5.9/dist/pixi.min.js"
+      ],
+      function () { return typeof PIXI !== "undefined" && typeof PIXI.Application === "function"; },
+      "pixi.js"
+    );
+    if (!pixiOk) return;
+
+    var live2dOk = await loadFirstWorking(
+      [
+        "https://cdn.jsdelivr.net/npm/pixi-live2d-display@0.4.0/dist/cubism4.min.js",
+        "https://unpkg.com/pixi-live2d-display@0.4.0/dist/cubism4.min.js"
+      ],
+      function () { return typeof PIXI.live2d !== "undefined" && typeof PIXI.live2d.Live2DModel !== "undefined"; },
+      "pixi-live2d-display"
+    );
+    if (!live2dOk) return;
+
+    await loadScriptTag("js/live2d-bridge.js");
+  }
+
+  window.addEventListener("DOMContentLoaded", bootstrap);
 </script>
-<!-- Cubism 4 Core runtime (sudah dibundel, bukan dari CDN) -->
-<script src="js/live2dcubismcore.min.js" onerror="reportScriptLoadError('live2dcubismcore.min.js')"></script>
-<!-- PIXI v6 (wajib v6, pixi-live2d-display belum kompatibel penuh dengan v7+) -->
-<script src="https://cdn.jsdelivr.net/npm/pixi.js@6.5.9/dist/pixi.min.js" onerror="reportScriptLoadError('pixi.js (CDN)')"></script>
-<script src="https://cdn.jsdelivr.net/npm/pixi-live2d-display@0.4.0/dist/cubism4.min.js" onerror="reportScriptLoadError('pixi-live2d-display (CDN)')"></script>
+<!-- Cubism 4 Core runtime (sudah dibundel lokal, bukan dari CDN, jadi selalu ada) -->
+<script src="js/live2dcubismcore.min.js" onerror="reportError('Gagal memuat live2dcubismcore.min.js dari assets lokal')"></script>
 </head>
 <body>
 <canvas id="canvas"></canvas>
-<script src="js/live2d-bridge.js"></script>
 </body>
 </html>
