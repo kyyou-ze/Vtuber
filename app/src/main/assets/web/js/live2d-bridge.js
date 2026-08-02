@@ -3,7 +3,21 @@
 // lewat WebView.evaluateJavascript(), untuk sinkronisasi mulut & ekspresi.
 
 (function () {
-  const { Application, live2d } = PIXI;
+  try {
+    if (typeof PIXI === "undefined") {
+      throw new Error("PIXI tidak terdefinisi (skrip pixi.js gagal dimuat, cek internet)");
+    }
+    if (typeof PIXI.live2d === "undefined" || typeof Live2DCubismCore === "undefined") {
+      throw new Error("Live2D Cubism Core / pixi-live2d-display tidak terdefinisi");
+    }
+    runBridge();
+  } catch (err) {
+    if (window.Android && window.Android.onJsEvent) {
+      window.Android.onJsEvent("onJsError", JSON.stringify({ message: String(err && err.message || err) }));
+    }
+  }
+
+  function runBridge() {
   const Live2DModel = PIXI.live2d.Live2DModel;
 
   const app = new PIXI.Application({
@@ -153,4 +167,5 @@
   };
 
   loadModel();
+  } // end runBridge
 })();
