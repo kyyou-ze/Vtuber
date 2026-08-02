@@ -124,6 +124,7 @@ class MainActivity : AppCompatActivity() {
         binding.webViewLive2D.setBackgroundColor(android.graphics.Color.TRANSPARENT)
         binding.webViewLive2D.settings.javaScriptEnabled = true
         binding.webViewLive2D.settings.domStorageEnabled = true
+        binding.webViewLive2D.settings.cacheMode = android.webkit.WebSettings.LOAD_NO_CACHE
         binding.webViewLive2D.settings.allowFileAccess = true
         binding.webViewLive2D.settings.mixedContentMode =
             android.webkit.WebSettings.MIXED_CONTENT_ALWAYS_ALLOW
