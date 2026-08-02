@@ -12,12 +12,16 @@ import android.speech.SpeechRecognizer
 import android.speech.tts.TextToSpeech
 import android.speech.tts.UtteranceProgressListener
 import android.webkit.JavascriptInterface
+import android.webkit.WebResourceRequest
+import android.webkit.WebResourceResponse
+import android.webkit.WebView
 import android.webkit.WebViewClient
 import android.widget.EditText
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
+import androidx.webkit.WebViewAssetLoader
 import com.icegirl.vtuber.databinding.ActivityMainBinding
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -120,15 +124,28 @@ class MainActivity : AppCompatActivity() {
 
     // ===================== WebView / Live2D =====================
 
+    private lateinit var assetLoader: WebViewAssetLoader
+
     private fun setupWebView() {
+        assetLoader = WebViewAssetLoader.Builder()
+            .setDomain("appassets.androidplatform.net")
+            .addPathHandler("/assets/", WebViewAssetLoader.AssetsPathHandler(this))
+            .build()
+
         binding.webViewLive2D.setBackgroundColor(android.graphics.Color.TRANSPARENT)
         binding.webViewLive2D.settings.javaScriptEnabled = true
         binding.webViewLive2D.settings.domStorageEnabled = true
         binding.webViewLive2D.settings.cacheMode = android.webkit.WebSettings.LOAD_NO_CACHE
-        binding.webViewLive2D.settings.allowFileAccess = true
         binding.webViewLive2D.settings.mixedContentMode =
             android.webkit.WebSettings.MIXED_CONTENT_ALWAYS_ALLOW
         binding.webViewLive2D.webViewClient = object : WebViewClient() {
+            override fun shouldInterceptRequest(
+                view: WebView,
+                request: WebResourceRequest
+            ): WebResourceResponse? {
+                return assetLoader.shouldInterceptRequest(request.url)
+            }
+
             override fun onReceivedError(
                 view: android.webkit.WebView?,
                 request: android.webkit.WebResourceRequest?,
@@ -155,7 +172,10 @@ class MainActivity : AppCompatActivity() {
             }
         }
         binding.webViewLive2D.addJavascriptInterface(JsBridge(), "Android")
-        binding.webViewLive2D.loadUrl("file:///android_asset/web/index.html")
+        // Dimuat lewat domain virtual https:// (bukan file://) supaya fetch() di JS
+        // (dipakai library Live2D untuk ambil model3.json, texture, dll) tidak diblokir
+        // Chromium karena "Fetch API cannot load file:// URLs".
+        binding.webViewLive2D.loadUrl("https://appassets.androidplatform.net/assets/web/index.html")
     }
 
     // ===================== TTS setup =====================
