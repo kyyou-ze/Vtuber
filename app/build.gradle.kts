@@ -46,4 +46,7 @@ dependencies {
     implementation("androidx.constraintlayout:constraintlayout:2.1.4")
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.8.4")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.8.1")
+    // Dipakai supaya WebView bisa serve file lokal lewat https://appassets.androidplatform.net/
+    // (fetch() di JS tidak diizinkan Chromium mengakses file:// langsung).
+    implementation("androidx.webkit:webkit:1.12.1")
 }
