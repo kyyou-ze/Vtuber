@@ -17,25 +17,29 @@ cd "$WORK_DIR"
 npm init -y >/dev/null 2>&1
 npm install --no-save --silent pixi.js@6.5.9 pixi-live2d-display@0.4.0
 
-echo "Menentukan file browser yang benar (lewat metadata package.json, bukan tebakan)..."
+echo "Menentukan & memvalidasi file browser yang benar..."
 node -e "
 const fs = require('fs');
 const path = require('path');
 
-// Tidak pakai require.resolve(pkg + '/package.json') karena paket seperti
-// pixi.js versi baru membatasi akses subpath itu lewat field 'exports'.
-// Cukup baca langsung dari node_modules/<pkg>/package.json.
 function pkgDirOf(pkgName) {
   return path.join(process.cwd(), 'node_modules', pkgName);
 }
 
-function resolveEntry(pkgName, fallbacks) {
+// PENTING: untuk pixi.js v6.3+, path yang benar untuk <script> tag biasa
+// (bukan ESM/CJS) adalah 'dist/browser/pixi.min.js'. Field 'jsdelivr'/'unpkg'
+// di package.json TIDAK selalu bisa dipercaya (kadang menunjuk ke varian
+// CJS/ESM yang tidak mendefinisikan variabel global PIXI kalau dimuat lewat
+// <script> biasa) -- makanya path pasti dicoba DULUAN, baru field
+// package.json dipakai sebagai cadangan terakhir.
+function resolveEntry(pkgName, knownGoodPaths, pkgJsonFieldsAsLastResort) {
   const pkgDir = pkgDirOf(pkgName);
-  const pkgJsonPath = path.join(pkgDir, 'package.json');
-  const pkgJson = JSON.parse(fs.readFileSync(pkgJsonPath, 'utf8'));
-  const declared = pkgJson.jsdelivr || pkgJson.unpkg || pkgJson.main;
+  const pkgJson = JSON.parse(fs.readFileSync(path.join(pkgDir, 'package.json'), 'utf8'));
+  const declared = pkgJsonFieldsAsLastResort
+    ? (pkgJson.jsdelivr || pkgJson.unpkg || pkgJson.main)
+    : null;
+  const candidates = [...knownGoodPaths, declared].filter(Boolean);
 
-  const candidates = [declared, ...fallbacks].filter(Boolean);
   for (const rel of candidates) {
     const full = path.join(pkgDir, rel);
     if (fs.existsSync(full)) return full;
@@ -43,12 +47,32 @@ function resolveEntry(pkgName, fallbacks) {
   throw new Error('Tidak ketemu file browser untuk ' + pkgName + '. Dicoba: ' + candidates.join(', '));
 }
 
+// Validasi sederhana: file harus cukup besar & benar-benar mendefinisikan
+// class Application secara global, biar kalau salah file, GAGAL SEKARANG
+// (saat build) -- bukan nanti pas app sudah di-install di HP.
+function assertLooksLikePixiBundle(filePath) {
+  const stat = fs.statSync(filePath);
+  if (stat.size < 100 * 1024) {
+    throw new Error(filePath + ' kekecilan (' + stat.size + ' bytes) buat jadi pixi.js browser bundle yang valid.');
+  }
+  const content = fs.readFileSync(filePath, 'utf8');
+  if (!content.includes('Application')) {
+    throw new Error(filePath + ' sepertinya bukan pixi.js browser bundle yang benar (tidak ada class Application).');
+  }
+}
+
 const destDir = '$DEST_DIR';
 fs.mkdirSync(destDir, { recursive: true });
 
-const pixiSrc = resolveEntry('pixi.js', ['dist/browser/pixi.min.js', 'dist/pixi.min.js']);
-fs.copyFileSync(pixiSrc, path.join(destDir, 'pixi.min.js'));
-console.log('pixi.js  <-', pixiSrc);
+const pixiSrc = resolveEntry(
+  'pixi.js',
+  ['dist/browser/pixi.min.js', 'dist/browser/pixi.js', 'dist/pixi.min.js'],
+  true
+);
+const pixiDest = path.join(destDir, 'pixi.min.js');
+fs.copyFileSync(pixiSrc, pixiDest);
+assertLooksLikePixiBundle(pixiDest);
+console.log('pixi.js  <-', pixiSrc, '(' + fs.statSync(pixiDest).size + ' bytes, tervalidasi)');
 
 const cubism4Src = path.join(pkgDirOf('pixi-live2d-display'), 'dist', 'cubism4.min.js');
 fs.copyFileSync(cubism4Src, path.join(destDir, 'cubism4.min.js'));
