@@ -121,10 +121,38 @@ class MainActivity : AppCompatActivity() {
     // ===================== WebView / Live2D =====================
 
     private fun setupWebView() {
+        binding.webViewLive2D.setBackgroundColor(android.graphics.Color.TRANSPARENT)
         binding.webViewLive2D.settings.javaScriptEnabled = true
         binding.webViewLive2D.settings.domStorageEnabled = true
         binding.webViewLive2D.settings.allowFileAccess = true
-        binding.webViewLive2D.webViewClient = WebViewClient()
+        binding.webViewLive2D.settings.mixedContentMode =
+            android.webkit.WebSettings.MIXED_CONTENT_ALWAYS_ALLOW
+        binding.webViewLive2D.webViewClient = object : WebViewClient() {
+            override fun onReceivedError(
+                view: android.webkit.WebView?,
+                request: android.webkit.WebResourceRequest?,
+                error: android.webkit.WebResourceError?
+            ) {
+                super.onReceivedError(view, request, error)
+                if (request?.isForMainFrame == true) {
+                    runOnUiThread {
+                        binding.txtSubtitle.text = "Gagal load halaman avatar: ${error?.description}"
+                    }
+                }
+            }
+
+            override fun onReceivedHttpError(
+                view: android.webkit.WebView?,
+                request: android.webkit.WebResourceRequest?,
+                errorResponse: android.webkit.WebResourceResponse?
+            ) {
+                super.onReceivedHttpError(view, request, errorResponse)
+                android.util.Log.w(
+                    "IceGirlWebView",
+                    "HTTP error ${errorResponse?.statusCode} loading ${request?.url}"
+                )
+            }
+        }
         binding.webViewLive2D.addJavascriptInterface(JsBridge(), "Android")
         binding.webViewLive2D.loadUrl("file:///android_asset/web/index.html")
     }
@@ -376,6 +404,12 @@ class MainActivity : AppCompatActivity() {
             when (event) {
                 "onModelError" -> runOnUiThread {
                     binding.txtSubtitle.text = "Gagal load model: $dataJson"
+                }
+                "onJsError" -> runOnUiThread {
+                    binding.txtSubtitle.text = "Error di avatar: $dataJson"
+                }
+                else -> runOnUiThread {
+                    binding.txtSubtitle.text = "[$event] $dataJson"
                 }
             }
         }
