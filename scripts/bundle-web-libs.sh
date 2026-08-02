@@ -22,24 +22,35 @@ node -e "
 const fs = require('fs');
 const path = require('path');
 
-function resolveEntry(pkgName) {
-  const pkgJsonPath = require.resolve(pkgName + '/package.json', { paths: [process.cwd()] });
-  const pkgDir = path.dirname(pkgJsonPath);
+// Tidak pakai require.resolve(pkg + '/package.json') karena paket seperti
+// pixi.js versi baru membatasi akses subpath itu lewat field 'exports'.
+// Cukup baca langsung dari node_modules/<pkg>/package.json.
+function pkgDirOf(pkgName) {
+  return path.join(process.cwd(), 'node_modules', pkgName);
+}
+
+function resolveEntry(pkgName, fallbacks) {
+  const pkgDir = pkgDirOf(pkgName);
+  const pkgJsonPath = path.join(pkgDir, 'package.json');
   const pkgJson = JSON.parse(fs.readFileSync(pkgJsonPath, 'utf8'));
-  const entry = pkgJson.jsdelivr || pkgJson.unpkg || pkgJson.main;
-  if (!entry) throw new Error('Tidak ketemu entry browser untuk ' + pkgName);
-  return path.join(pkgDir, entry);
+  const declared = pkgJson.jsdelivr || pkgJson.unpkg || pkgJson.main;
+
+  const candidates = [declared, ...fallbacks].filter(Boolean);
+  for (const rel of candidates) {
+    const full = path.join(pkgDir, rel);
+    if (fs.existsSync(full)) return full;
+  }
+  throw new Error('Tidak ketemu file browser untuk ' + pkgName + '. Dicoba: ' + candidates.join(', '));
 }
 
 const destDir = '$DEST_DIR';
 fs.mkdirSync(destDir, { recursive: true });
 
-const pixiSrc = resolveEntry('pixi.js');
+const pixiSrc = resolveEntry('pixi.js', ['dist/browser/pixi.min.js', 'dist/pixi.min.js']);
 fs.copyFileSync(pixiSrc, path.join(destDir, 'pixi.min.js'));
 console.log('pixi.js  <-', pixiSrc);
 
-const live2dDir = path.dirname(require.resolve('pixi-live2d-display/package.json', { paths: [process.cwd()] }));
-const cubism4Src = path.join(live2dDir, 'dist', 'cubism4.min.js');
+const cubism4Src = path.join(pkgDirOf('pixi-live2d-display'), 'dist', 'cubism4.min.js');
 fs.copyFileSync(cubism4Src, path.join(destDir, 'cubism4.min.js'));
 console.log('cubism4  <-', cubism4Src);
 "
