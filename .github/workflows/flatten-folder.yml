@@ -1,0 +1,56 @@
+name: Flatten Folder to Root
+
+# Cara pakai:
+# Kalau hasil unzip kemarin nyangkut di dalam subfolder (misal "VTuberApp/"),
+# workflow ini memindahkan SEMUA isi folder itu ke root repo, lalu
+# menghapus folder yang sudah kosong itu, lalu commit hasilnya.
+#
+# Jalankan manual: tab Actions > "Flatten Folder to Root" > Run workflow,
+# isi nama foldernya (default sudah "VTuberApp").
+
+on:
+  workflow_dispatch:
+    inputs:
+      folder:
+        description: "Nama folder yang isinya mau dipindah ke root repo"
+        required: false
+        default: "VTuberApp"
+
+jobs:
+  flatten:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Pindahkan isi folder ke root
+        env:
+          FOLDER: ${{ github.event.inputs.folder }}
+        run: |
+          if [ ! -d "$FOLDER" ]; then
+            echo "Folder '$FOLDER' tidak ditemukan di root repo, dibatalkan."
+            exit 1
+          fi
+
+          echo "Memindahkan isi '$FOLDER/' ke root..."
+          # pindahkan file & folder biasa
+          shopt -s dotglob nullglob
+          for item in "$FOLDER"/*; do
+            name="$(basename "$item")"
+            if [ -e "$name" ] && [ "$name" != "$FOLDER" ]; then
+              echo "Lewati '$name' (sudah ada file/folder dengan nama sama di root)."
+              continue
+            fi
+            mv "$item" ./
+          done
+          shopt -u dotglob nullglob
+
+          rmdir "$FOLDER" 2>/dev/null || rm -rf "$FOLDER"
+          echo "Selesai."
+
+      - name: Commit hasil
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "chore: flatten folder ${{ github.event.inputs.folder }} to root"
+          file_pattern: "."
