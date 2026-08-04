@@ -1,0 +1,28 @@
+name: Hapus Semua File Kecuali .github
+
+on:
+  workflow_dispatch: # Bisa dijalankan manual dari tab Actions
+
+jobs:
+  clean:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      
+    steps:
+      - name: Ambil Repositori
+        uses: actions/checkout@v4
+
+      - name: Hapus Semua File Kecuali Folder .github
+        run: |
+          # Cari dan hapus semua file/folder di root, kecuali folder .github dan git
+          find . -maxdepth 1 ! -name '.' ! -name '.git' ! -name '.github' -exec rm -rf {} +
+
+      - name: Commit dan Push Perubahan
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "chore: hapus semua file kecuali .github"
+          git push
+          
