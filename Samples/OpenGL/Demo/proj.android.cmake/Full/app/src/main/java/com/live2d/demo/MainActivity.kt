@@ -78,7 +78,13 @@ class MainActivity : AppCompatActivity() {
         glRenderer = GLRenderer()
         glSurfaceView.setRenderer(glRenderer)
         glSurfaceView.renderMode = GLSurfaceView.RENDERMODE_CONTINUOUSLY
-        findViewById<FrameLayout>(R.id.glContainer).addView(glSurfaceView)
+        findViewById<FrameLayout>(R.id.glContainer).addView(
+            glSurfaceView,
+            FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.MATCH_PARENT,
+                FrameLayout.LayoutParams.MATCH_PARENT
+            )
+        )
 
         glSurfaceView.setOnTouchListener { _, event ->
             val pointX = event.x
